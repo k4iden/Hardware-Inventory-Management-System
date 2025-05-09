@@ -1,0 +1,560 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace InventoryManagementSystem
+{
+    public class InventoryManager
+    {
+        static List<Item> inventory = new List<Item>();
+        static List<Sale> salesHistory = new List<Sale>();
+
+        static int itemCounter = 1;
+        static int saleCounter = 1;
+
+        static readonly string inventoryFile = @"C:\\Users\\Acer\\Documents\\OOP1 project\\Inventory Records\InventoryRecord.txt";
+        static readonly string salesFile = @"C:\\Users\\Acer\\Documents\\OOP1 project\\Inventory Records\SalesRecord.txt";
+        static readonly string dailySalesFile = @"C:\\Users\\Acer\\Documents\\OOP1 project\\Inventory Records\DailySalesRecord.txt";
+        static readonly string monthlySalesFile = @"C:\\Users\\Acer\\Documents\\OOP1 project\\Inventory Records\MonthlySalesRecord.txt";
+        static readonly string yearlySalesFile = @"C:\\Users\\Acer\\Documents\\OOP1 project\\Inventory Records\YearlySalesRecord.txt";
+
+        public InventoryManager()
+        {
+            CreateHardwareAssetsDirectory();
+        }
+
+
+        private void CreateHardwareAssetsDirectory()
+        {
+            try
+            {
+                string dataDirectory = Path.Combine(Directory.GetCurrentDirectory(), "HardwareStore_Assets");
+                if (!Directory.Exists(dataDirectory))
+                {
+                    Directory.CreateDirectory(dataDirectory);
+                }
+            }
+            catch (IOException ioExp)
+            {
+                Console.WriteLine($"ERROR CREATING DIRECTORY: {ioExp.Message}");
+            }
+            catch (Exception exp)
+            {
+                Console.WriteLine($"ERROR: {exp.Message}");
+            }
+        }
+
+        static void InvManager()
+        {
+            EnsureDataDirectory();
+            LoadInventoryFromFile();
+            LoadSalesFromFile();
+        }
+
+        static void EnsureDataDirectory()
+        {
+            if (!Directory.Exists("Data"))
+            {
+                Directory.CreateDirectory("Data");
+            }
+        }
+        static void LoadInventoryFromFile()
+        {
+            if (!File.Exists(inventoryFile)) return;
+
+            foreach (var line in File.ReadAllLines(inventoryFile))
+            {
+                var parts = line.Split(',');
+                inventory.Add(new Item
+                {
+                    ID = int.Parse(parts[0]),
+                    Name = parts[1],
+                    Quantity = int.Parse(parts[2]),
+                    Price = double.Parse(parts[3])
+                });
+            }
+
+            if (inventory.Count > 0)
+            {
+                itemCounter = inventory[^1].ID + 1;
+            }
+        }
+
+        static void LoadSalesFromFile()
+        {
+            try
+            {
+                if (!File.Exists(salesFile)) return;
+
+                var lines = File.ReadAllLines(salesFile);
+                foreach (var line in lines)
+                {
+                    var parts = line.Split(',');
+                    salesHistory.Add(new Sale
+                    {
+                        ID = int.Parse(parts[0]),
+                        Name = parts[1],
+                        QuantitySold = int.Parse(parts[2]),
+                        TotalPrice = double.Parse(parts[3]),
+                        SaleDate = DateTime.Parse(parts[4])
+                    });
+                }
+
+                if (salesHistory.Count > 0)
+                {
+                    saleCounter = salesHistory[^1].ID + 1;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading sales: {ex.Message}");
+            }
+        }
+
+        public void SaveAndExit()
+        {
+            SaveInventoryToFile();
+            SaveSalesToFile();
+            Console.WriteLine("Data saved. Exiting program.");
+        }
+        static void SaveInventoryToFile()
+        {
+            try
+            {
+                using var writer = new StreamWriter(inventoryFile);
+                foreach (var item in inventory)
+                {
+                    writer.WriteLine($"{item.ID},{item.Name},{item.Quantity},{item.Price}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error saving inventory: {ex.Message}");
+            }
+        }
+        static void SaveSalesToFile()
+        {
+            try
+            {
+                using var writer = new StreamWriter(salesFile);
+                foreach (var sale in salesHistory)
+                {
+                    writer.WriteLine($"{sale.ID},{sale.Name},{sale.QuantitySold},{sale.TotalPrice},{sale.SaleDate:yyyy-MM-dd HH:mm:ss}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error saving sales: {ex.Message}");
+            }
+        }
+        public void AddItem()
+        {
+            try
+            {
+                Console.Write("\nEnter item name: ");
+                string name = Console.ReadLine();
+
+                if (string.IsNullOrWhiteSpace(name))
+                {
+                    Console.WriteLine("Item name cannot be empty.");
+                    return;
+                }
+
+                if (inventory.Exists(i => i.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+                {
+                    Console.WriteLine("Item already exists.");
+                    return;
+                }
+
+                int quantity = ReadInteger("Enter quantity: ");
+                double price = ReadDouble("Enter price: ");
+
+                inventory.Add(new Item
+                {
+                    ID = itemCounter++,
+                    Name = name,
+                    Quantity = quantity,
+                    Price = price
+                });
+
+                SaveInventoryToFile();
+                Console.WriteLine("Item added successfully.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"An error occurred: {ex.Message}");
+            }
+        }
+        public void DisplayInventory()
+        {
+            Console.WriteLine("\nInventory:");
+            Console.WriteLine("{0,-5} {1,-20} {2,-10} {3,-10}", "ID", "Name", "Quantity", "Price");
+            foreach (var item in inventory)
+            {
+                Console.WriteLine("{0,-5} {1,-20} {2,-10} {3,-10:C}", item.ID, item.Name, item.Quantity, item.Price);
+            }
+        }
+
+        public void UpdateItem()
+        {
+
+            if (inventory.Count == 0)
+            {
+                Console.WriteLine("You don't have any items inputted.");
+                return;
+            }
+
+
+            DisplayInventory();
+
+
+            Console.Write("\nEnter the ID of the item you want to update: ");
+            int id = int.Parse(Console.ReadLine());
+            var item = inventory.Find(i => i.ID == id);
+
+            if (item == null)
+            {
+                Console.WriteLine("Item not found.");
+                return;
+            }
+
+
+            Console.WriteLine("\nSelected Item:");
+            Console.WriteLine("{0,-5} {1,-20} {2,-10} {3,-10}", "ID", "Name", "Quantity", "Price");
+            Console.WriteLine("{0,-5} {1,-20} {2,-10} {3,-10:C}", item.ID, item.Name, item.Quantity, item.Price);
+
+
+            Console.WriteLine("\nWhat would you like to update?");
+            Console.WriteLine("1. Name");
+            Console.WriteLine("2. Quantity");
+            Console.WriteLine("3. Price");
+            Console.Write("Choose an option: ");
+            string option = Console.ReadLine();
+
+            switch (option)
+            {
+                case "1":
+                    Console.Write("Enter new name: ");
+                    item.Name = Console.ReadLine();
+                    Console.WriteLine("Name updated.");
+                    break;
+                case "2":
+                    Console.Write("Enter new quantity: ");
+                    item.Quantity = int.Parse(Console.ReadLine());
+                    Console.WriteLine("Quantity updated.");
+                    break;
+                case "3":
+                    Console.Write("Enter new price: ");
+                    item.Price = double.Parse(Console.ReadLine());
+                    Console.WriteLine("Price updated.");
+                    break;
+                default:
+                    Console.WriteLine("Invalid option.");
+                    break;
+            }
+
+
+            SaveInventoryToFile();
+        }
+        public void DeleteItem()
+        {
+            try
+            {
+                if (inventory.Count == 0)
+                {
+                    Console.WriteLine("You don't have any items inputted.");
+                    return;
+                }
+
+                DisplayInventory();
+
+                int id = ReadInteger("\nEnter the ID of the item you want to delete (or reduce quantity): ");
+                var item = inventory.Find(i => i.ID == id);
+
+                if (item == null)
+                {
+                    Console.WriteLine("Item not found.");
+                    return;
+                }
+
+                Console.WriteLine("\nSelected Item:");
+                Console.WriteLine("{0,-5} {1,-20} {2,-10} {3,-10}", "ID", "Name", "Quantity", "Price");
+                Console.WriteLine("{0,-5} {1,-20} {2,-10} {3,-10:C}", item.ID, item.Name, item.Quantity, item.Price);
+
+                Console.Write("\nEnter the quantity you want to delete (or enter 'all' to delete the entire item): ");
+                string input = Console.ReadLine();
+
+                if (string.IsNullOrWhiteSpace(input))
+                {
+                    Console.WriteLine("Input cannot be empty. Please try again.");
+                    return;
+                }
+
+                if (input.ToLower() == "all")
+                {
+                    inventory.Remove(item);
+                    Console.WriteLine("Item deleted entirely.");
+                }
+                else
+                {
+                    if (int.TryParse(input, out int quantityToDelete))
+                    {
+                        if (quantityToDelete <= 0)
+                        {
+                            Console.WriteLine("Quantity must be greater than 0.");
+                            return;
+                        }
+
+                        if (quantityToDelete > item.Quantity)
+                        {
+                            Console.WriteLine("You cannot delete more than the available quantity.");
+                            return;
+                        }
+
+                        item.Quantity -= quantityToDelete;
+                        Console.WriteLine($"{quantityToDelete} items deleted. Remaining quantity: {item.Quantity}");
+
+                        if (item.Quantity == 0)
+                        {
+                            inventory.Remove(item);
+                            Console.WriteLine("Item removed from inventory as quantity reached zero.");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid input. Please enter a valid quantity or 'all'.");
+                        return;
+                    }
+                }
+
+                SaveInventoryToFile();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"An error occurred: {ex.Message}");
+            }
+        }
+        public void RecordSale()
+        {
+            DisplayInventory();
+            Console.Write("\nEnter the ID of the item sold: ");
+            int id = int.Parse(Console.ReadLine());
+            var item = inventory.Find(i => i.ID == id);
+
+            if (item == null)
+            {
+                Console.WriteLine("Item not found.");
+                return;
+            }
+
+            Console.Write("Enter quantity sold: ");
+            int quantitySold = int.Parse(Console.ReadLine());
+
+            if (quantitySold > item.Quantity)
+            {
+                Console.WriteLine("Insufficient stock.");
+                return;
+            }
+
+            double totalPrice = quantitySold * item.Price;
+
+            salesHistory.Add(new Sale
+            {
+                ID = saleCounter++,
+                Name = item.Name,
+                QuantitySold = quantitySold,
+                TotalPrice = totalPrice,
+                SaleDate = DateTime.Now
+            });
+
+            item.Quantity -= quantitySold;
+            Console.WriteLine($"Sale recorded. Total price: {totalPrice:C}");
+        }
+        public void ViewSalesReport()
+        {
+            try
+            {
+                if (!File.Exists(salesFile))
+                {
+                    Console.WriteLine("No sales recorded yet.");
+                    return;
+                }
+
+
+                var sales = File.ReadAllLines(salesFile)
+                    .Select(line => line.Split(','))
+                    .Select(parts => new Sale
+                    {
+                        ID = int.Parse(parts[0]),
+                        Name = parts[1],
+                        QuantitySold = int.Parse(parts[2]),
+                        TotalPrice = double.Parse(parts[3]),
+                        SaleDate = DateTime.Parse(parts[4])
+                    })
+                    .ToList();
+
+                var dailySales = sales
+                    .GroupBy(s => s.SaleDate.Date)
+                    .Select(group => new
+                    {
+                        Date = group.Key,
+                        Total = group.Sum(s => s.TotalPrice)
+                    });
+
+                var monthlySales = sales
+                    .GroupBy(s => new { s.SaleDate.Year, s.SaleDate.Month })
+                    .Select(group => new
+                    {
+                        Year = group.Key.Year,
+                        Month = group.Key.Month,
+                        Total = group.Sum(s => s.TotalPrice)
+                    });
+
+                var yearlySales = sales
+                    .GroupBy(s => s.SaleDate.Year)
+                    .Select(group => new
+                    {
+                        Year = group.Key,
+                        Total = group.Sum(s => s.TotalPrice)
+                    });
+
+                // Display daily sales
+                Console.WriteLine("\nDaily Sales:");
+                foreach (var day in dailySales)
+                {
+                    Console.WriteLine($"{day.Date:yyyy-MM-dd}: {day.Total:C}");
+                }
+
+                // Display monthly sales
+                Console.WriteLine("\nMonthly Sales:");
+                foreach (var month in monthlySales)
+                {
+                    Console.WriteLine($"{month.Year}-{month.Month:D2}: {month.Total:C}");
+                }
+
+                // Display yearly sales
+                Console.WriteLine("\nYearly Sales:");
+                foreach (var year in yearlySales)
+                {
+                    Console.WriteLine($"{year.Year}: {year.Total:C}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"An error occurred: {ex.Message}");
+            }
+        }
+        public void SellItem()
+        {
+            try
+            {
+                if (inventory.Count == 0)
+                {
+                    Console.WriteLine("You don't have any items to sell.");
+                    return;
+                }
+
+                DisplayInventory();
+
+                int id = ReadInteger("\nEnter the ID of the item you want to sell: ");
+                var item = inventory.Find(i => i.ID == id);
+
+                if (item == null)
+                {
+                    Console.WriteLine("Item not found.");
+                    return;
+                }
+
+                int quantitySold = ReadInteger("Enter the quantity to sell: ");
+
+                if (quantitySold <= 0)
+                {
+                    Console.WriteLine("Quantity must be greater than 0.");
+                    return;
+                }
+
+                if (quantitySold > item.Quantity)
+                {
+                    Console.WriteLine("Insufficient stock.");
+                    return;
+                }
+
+                double totalPrice = quantitySold * item.Price;
+
+                // Record the sale in the Sales.txt file
+                using (var writer = new StreamWriter(salesFile, true))
+                {
+                    writer.WriteLine($"{saleCounter++},{item.Name},{quantitySold},{totalPrice},{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                }
+
+                // Update the inventory
+                item.Quantity -= quantitySold;
+
+                // Save changes to the inventory file   
+                SaveInventoryToFile();
+
+                Console.WriteLine($"Sale recorded. Total price: {totalPrice:C}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"An error occurred: {ex.Message}");
+            }
+        }
+        static int ReadInteger(string prompt)
+        {
+            while (true)
+            {
+                try
+                {
+                    Console.Write(prompt);
+                    string input = Console.ReadLine();
+
+                    if (string.IsNullOrWhiteSpace(input))
+                    {
+                        Console.WriteLine("Input cannot be empty. Please try again.");
+                        continue;
+                    }
+
+                    if (int.TryParse(input, out int result))
+                    {
+                        return result;
+                    }
+                    Console.WriteLine("Invalid input. Please enter a valid integer.");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"An error occurred: {ex.Message}");
+                }
+            }
+        }
+        static double ReadDouble(string prompt)
+        {
+            while (true)
+            {
+                try
+                {
+                    Console.Write(prompt);
+                    string input = Console.ReadLine();
+
+                    if (string.IsNullOrWhiteSpace(input))
+                    {
+                        Console.WriteLine("Input cannot be empty. Please try again.");
+                        continue;
+                    }
+
+                    if (double.TryParse(input, out double result))
+                    {
+                        return result;
+                    }
+                    Console.WriteLine("Invalid input. Please enter a valid number.");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"An error occurred: {ex.Message}");
+                }
+            }
+        }
+    }
+}
